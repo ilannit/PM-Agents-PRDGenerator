@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+
 import os
 from google_docs_utils import create_google_doc
 from dotenv import load_dotenv
@@ -16,7 +16,8 @@ with st.sidebar:
     st.header("Configuration")
     api_key = st.text_input("Gemini API Key", value=st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", "")), type="password")
     if api_key:
-        genai.configure(api_key=api_key)
+        # genai.configure no longer needed. API key is passed to function.
+        pass
     
     st.info("To generate Google Docs, ensure `credentials.json` is in the project root.")
 
@@ -40,26 +41,31 @@ with col2:
             result_placeholder.info("Generating PRD... this may take a moment.")
             
             try:
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                # Use the custom REST function to bypass library version issues
+                from gemini_utils import generate_content_rest
                 
-                parts = []
+                final_parts = []
+                image_parts = []
+                
                 if context_text:
-                    parts.append(f"Generate a detailed Product Requirements Document (PRD) based on the following context. Use standard PRD sections like Problem Statement, Goals, User Stories, Functional Requirements, and Non-Functional Requirements. Format it in Markdown.\n\nContext:\n{context_text}")
+                    prompt = f"Generate a detailed Product Requirements Document (PRD) based on the following context. Use standard PRD sections like Problem Statement, Goals, User Stories, Functional Requirements, and Non-Functional Requirements. Format it in Markdown.\n\nContext:\n{context_text}"
+                    final_parts.append(prompt)
                 
                 if uploaded_files:
-                    parts.append("\n\nAlso consider the attached design mockups/screenshots for UI/UX requirements.")
+                    prompt += "\n\nAlso consider the attached design mockups/screenshots for UI/UX requirements."
                     for uploaded_file in uploaded_files:
                         # Convert to bytes for Gemini
                         bytes_data = uploaded_file.getvalue()
-                        
-                        # Create a properly formatted part for the image
-                        from PIL import Image
-                        import io
-                        image = Image.open(io.BytesIO(bytes_data))
-                        parts.append(image)
+                        mime_type = uploaded_file.type
+                        image_parts.append((bytes_data, mime_type))
 
-                response = model.generate_content(parts)
-                generated_prd = response.text
+                # Combine text logic: `generate_content_rest` expects text and optional images
+                generated_prd = generate_content_rest(
+                    api_key=api_key, 
+                    text=prompt if context_text else "Please analyze these images and create a PRD.",
+                    images=image_parts,
+                    model_name="gemini-1.5-flash"
+                )
                 
                 result_placeholder.markdown(generated_prd)
                 st.session_state['generated_prd'] = generated_prd
