@@ -14,7 +14,7 @@ st.markdown("Generate a comprehensive Product Requirements Document from context
 # Sidebar for API Configuration
 with st.sidebar:
     st.header("Configuration")
-    api_key = st.text_input("Gemini API Key", value=os.getenv("GEMINI_API_KEY", ""), type="password")
+    api_key = st.text_input("Gemini API Key", value=st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", "")), type="password")
     if api_key:
         genai.configure(api_key=api_key)
     
