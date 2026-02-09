@@ -45,31 +45,47 @@ def generate_content_rest(api_key, text, images=None, model_name="gemini-1.5-fla
         }
     }
     
-    try:
-        response = requests.post(url, headers=headers, json=payload)
-        response.raise_for_status() # Raise HTTPError for bad responses (4xx, 5xx)
-        
-        result = response.json()
-        
-        # Parse the response to get the text
-        if "candidates" in result and len(result["candidates"]) > 0:
-            candidate = result["candidates"][0]
-            if "content" in candidate and "parts" in candidate["content"]:
-                return candidate["content"]["parts"][0]["text"]
-            else:
-                 return "Error: Unexpected response structure from Gemini API."
-        else:
-             return "Error: No candidates returned from Gemini API."
-             
-    except requests.exceptions.HTTPError as e:
-        error_msg = f"HTTP Error: {e}"
+import time
+
+    # Retry configuration
+    max_retries = 3
+    retry_delay = 2 # Initial delay in seconds
+
+    for attempt in range(max_retries + 1):
         try:
-            # Try to parse the error detail from the response body
-            error_data = response.json()
-            if "error" in error_data:
-                error_msg += f"\nDetails: {json.dumps(error_data['error'], indent=2)}"
-        except:
-            pass
-        return error_msg
-    except Exception as e:
-        return f"An error occurred: {e}"
+            response = requests.post(url, headers=headers, json=payload)
+            response.raise_for_status() # Raise HTTPError for bad responses (4xx, 5xx)
+            
+            result = response.json()
+            
+            # Parse the response to get the text
+            if "candidates" in result and len(result["candidates"]) > 0:
+                candidate = result["candidates"][0]
+                if "content" in candidate and "parts" in candidate["content"]:
+                    return candidate["content"]["parts"][0]["text"]
+                else:
+                    return "Error: Unexpected response structure from Gemini API."
+            else:
+                return "Error: No candidates returned from Gemini API."
+                
+        except requests.exceptions.HTTPError as e:
+            # Check for 429 Too Many Requests
+            if response.status_code == 429:
+                if attempt < max_retries:
+                    time.sleep(retry_delay)
+                    retry_delay *= 2 # Exponential backoff
+                    continue
+                else:
+                    return f"Error: Rate limit exceeded after {max_retries} retries. Please try again later."
+            
+            error_msg = f"HTTP Error: {e}"
+            try:
+                # Try to parse the error detail from the response body
+                error_data = response.json()
+                if "error" in error_data:
+                    error_msg += f"\nDetails: {json.dumps(error_data['error'], indent=2)}"
+            except:
+                pass
+            return error_msg
+        except Exception as e:
+            return f"An error occurred: {e}"

@@ -64,7 +64,7 @@ with col2:
                     api_key=api_key, 
                     text=prompt if context_text else "Please analyze these images and create a PRD.",
                     images=image_parts,
-                    model_name="gemini-2.0-flash"
+                    model_name="gemini-1.5-pro"
                 )
                 
                 result_placeholder.markdown(generated_prd)
