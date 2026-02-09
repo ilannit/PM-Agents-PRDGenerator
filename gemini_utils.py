@@ -1,6 +1,7 @@
 import requests
 import base64
 import json
+import time
 
 def generate_content_rest(api_key, text, images=None, model_name="gemini-1.5-flash"):
     """
@@ -45,8 +46,6 @@ def generate_content_rest(api_key, text, images=None, model_name="gemini-1.5-fla
         }
     }
     
-import time
-
     # Retry configuration
     max_retries = 3
     retry_delay = 2 # Initial delay in seconds
